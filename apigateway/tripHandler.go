@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/satori/go.uuid"
-	"github.com/yetis-br/tp/mq"
+	"github.com/yetis-br/tp-server/mq"
 )
 
 //TripHandler defines the methods to return the response

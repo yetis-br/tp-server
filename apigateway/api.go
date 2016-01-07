@@ -6,7 +6,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/streadway/amqp"
-	"github.com/yetis-br/tp/mq"
+	"github.com/yetis-br/tp-server/mq"
 )
 
 //Tasks define a message queue to communicate to the workers

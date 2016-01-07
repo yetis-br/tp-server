@@ -5,9 +5,9 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/yetis-br/tp/models"
-	"github.com/yetis-br/tp/mq"
-	"github.com/yetis-br/tp/util"
+	"github.com/yetis-br/tp-server/models"
+	"github.com/yetis-br/tp-server/mq"
+	"github.com/yetis-br/tp-server/util"
 )
 
 func init() {
