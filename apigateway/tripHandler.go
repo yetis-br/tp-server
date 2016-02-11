@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"time"
 
@@ -25,7 +27,19 @@ func (t TripHandler) Get(request *http.Request) (int, interface{}) {
 
 //Post manages post method requests
 func (t TripHandler) Post(request *http.Request) (int, interface{}) {
-	return http.StatusOK, nil
+	body, err := ioutil.ReadAll(request.Body)
+	if err != nil {
+		log.Println(err)
+	}
+
+	var message mq.Message
+	message.CorrelationID = uuid.NewV4().String()
+	message.RequestAction = "POST"
+	message.Request = string(body)
+
+	Tasks.PublishMessage(message, "Trip", message.CorrelationID, "callback")
+
+	return processMessage(&message)
 }
 
 //Put manages put method requests
@@ -49,7 +63,7 @@ func processMessage(message *mq.Message) (int, interface{}) {
 		case d := <-CallbackMessages:
 			if message.CorrelationID == d.CorrelationId {
 				json.Unmarshal(d.Body, &message)
-				return http.StatusOK, message.Response
+				return message.ResponseCode, message.Response
 			}
 		}
 	}

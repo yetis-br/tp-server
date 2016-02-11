@@ -2,8 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
+	"os"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/streadway/amqp"
 	"github.com/yetis-br/tp-server/mq"
@@ -26,10 +29,13 @@ func main() {
 	router.HandleFunc("/trips", requestHandler(trip)).Methods("GET", "POST")
 	router.HandleFunc("/trip/{id}", requestHandler(trip)).Methods("GET", "PUT", "DELETE")
 
-	http.Handle("/", router)
+	http.Handle("/", handlers.CORS()(router))
 
-	http.ListenAndServe(":3000", nil)
+	log.Println("[TP-Server] Listening on 3000")
 
+	loggedRouter := handlers.CombinedLoggingHandler(os.Stdout, router)
+
+	http.ListenAndServe(":3000", loggedRouter)
 }
 
 //ResourceHandler interface to manage requests
