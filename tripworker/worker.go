@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/yetis-br/tp-server/models"
 	"github.com/yetis-br/tp-server/mq"
@@ -37,12 +36,11 @@ func main() {
 	tasks.NewQueue("TripWorkerQueue", "Trip")
 	msgs := tasks.GetMessages("TripWorkerQueue")
 
-	var message mq.Message
-
 	forever := make(chan bool)
 
 	go func() {
 		for d := range msgs {
+			var message mq.Message
 			json.Unmarshal(d.Body, &message)
 			processMessage(&message)
 			tasks.PublishMessage(message, d.ReplyTo, d.CorrelationId, "")
@@ -58,6 +56,8 @@ func processMessage(message *mq.Message) {
 	switch message.RequestAction {
 	case "GET_ALL":
 		getAllTrips(message)
+	case "GET":
+		getTrip(message)
 	case "POST":
 		postTrip(message)
 	}
@@ -65,14 +65,11 @@ func processMessage(message *mq.Message) {
 
 func getAllTrips(message *mq.Message) {
 	trips, err := db.Table("Trips").Run(session)
-	if err != nil {
-		log.Print(err)
-	}
+	util.LogOnError(err, "[Trip Worker] Erro on getAllTrips")
+
 	var rows []interface{}
 	err = trips.All(&rows)
-	if err != nil {
-		log.Print(err)
-	}
+	util.LogOnError(err, "[Trip Worker] Erro on All function")
 
 	message.ResponseCode = http.StatusOK
 	message.Response = rows
@@ -80,19 +77,39 @@ func getAllTrips(message *mq.Message) {
 	trips.Close()
 }
 
+func getTrip(message *mq.Message) {
+	var trip models.Trip
+	trip.ID = message.Request.(string)
+
+	result, err := db.Table("Trips").Get(trip.ID).Run(session)
+	util.LogOnError(err, "[Trip Worker] Erro on getTrip")
+
+	if result == nil {
+		message.ResponseCode = http.StatusNotFound
+		message.Response = nil
+	} else {
+		err = result.One(&trip)
+		util.LogOnError(err, "[Trip Worker] Erro on One function")
+
+		message.ResponseCode = http.StatusOK
+		message.Response = trip
+	}
+	result.Close()
+}
+
 func postTrip(message *mq.Message) {
 	var trip models.Trip
-	jsonTrip := message.Request.(string)
-	json.Unmarshal([]byte(jsonTrip), &trip)
+	trip.Initialize()
+	trip.LoadJSON(message.Request.(string))
 
-	trip.CreatedDate = time.Now()
-	trip.UpdatedDate = time.Now()
+	if trip.Validate() {
+		resp, err := db.Table("Trips").Insert(trip).RunWrite(session)
+		util.LogOnError(err, "[Trip Worker] Erro inserting new Trip")
 
-	resp, err := db.Table("Trips").Insert(trip).RunWrite(session)
-	if err != nil {
-		log.Print(err)
+		message.ResponseCode = http.StatusOK
+		message.Response = resp
+	} else {
+		message.ResponseCode = http.StatusBadRequest
+		message.Response = nil
 	}
-
-	message.ResponseCode = http.StatusOK
-	message.Response = resp
 }

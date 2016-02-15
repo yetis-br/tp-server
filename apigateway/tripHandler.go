@@ -3,22 +3,28 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/satori/go.uuid"
 	"github.com/yetis-br/tp-server/mq"
+	"github.com/yetis-br/tp-server/util"
 )
 
 //TripHandler defines the methods to return the response
 type TripHandler struct{}
 
 //Get manages get method requests
-func (t TripHandler) Get(request *http.Request) (int, interface{}) {
+func (t TripHandler) Get(request *http.Request, vars map[string]string) (int, interface{}) {
+
 	var message mq.Message
 	message.CorrelationID = uuid.NewV4().String()
-	message.RequestAction = "GET_ALL"
+	if vars["id"] == "" {
+		message.RequestAction = "GET_ALL"
+	} else {
+		message.RequestAction = "GET"
+		message.Request = vars["id"]
+	}
 
 	Tasks.PublishMessage(message, "Trip", message.CorrelationID, "callback")
 
@@ -28,9 +34,7 @@ func (t TripHandler) Get(request *http.Request) (int, interface{}) {
 //Post manages post method requests
 func (t TripHandler) Post(request *http.Request) (int, interface{}) {
 	body, err := ioutil.ReadAll(request.Body)
-	if err != nil {
-		log.Println(err)
-	}
+	util.LogOnError(err, "Post error reading request body")
 
 	var message mq.Message
 	message.CorrelationID = uuid.NewV4().String()

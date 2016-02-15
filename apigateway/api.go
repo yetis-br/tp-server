@@ -40,7 +40,7 @@ func main() {
 
 //ResourceHandler interface to manage requests
 type ResourceHandler interface {
-	Get(request *http.Request) (int, interface{})
+	Get(request *http.Request, vars map[string]string) (int, interface{})
 	Post(request *http.Request) (int, interface{})
 	Put(request *http.Request) (int, interface{})
 	Delete(request *http.Request) (int, interface{})
@@ -53,10 +53,11 @@ func requestHandler(resource ResourceHandler) http.HandlerFunc {
 		var code int
 
 		method := request.Method
+		vars := mux.Vars(request)
 
 		switch method {
 		case "GET":
-			code, data = resource.Get(request)
+			code, data = resource.Get(request, vars)
 		case "POST":
 			code, data = resource.Post(request)
 		case "PUT":
@@ -73,6 +74,7 @@ func requestHandler(resource ResourceHandler) http.HandlerFunc {
 		if err != nil {
 			code = http.StatusBadRequest
 		}
+		rw.Header().Add("Content-Type", "application/json")
 		rw.WriteHeader(code)
 		rw.Write(content)
 	}
